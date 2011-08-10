@@ -2,11 +2,9 @@
 
 namespace CacheCache\Adapters;
 
-use CacheCache\AbstractCacheAdapter;
-
-class Memory extends AbstractCacheAdapter
+class Memory extends AbstractAdapter
 {
-    protected $cache;
+    protected $cache = array();
 
     public function get($key)
     {
@@ -16,8 +14,18 @@ class Memory extends AbstractCacheAdapter
         return $this->cache[$key];
     }
 
-    public function set($key, $value, $expire)
+    public function set($key, $value, $expire = null)
     {
         return $this->cache[$key] = $value;
+    }
+
+    public function delete($key)
+    {
+        unset($this->cache[$key]);
+    }
+
+    public function flushAll()
+    {
+        $this->cache = array();
     }
 }

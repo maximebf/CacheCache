@@ -2,15 +2,14 @@
 
 namespace CacheCache\Adapters;
 
-use CacheCache\AbstractCacheAdapter;
-
-class Memcache extends AbstractCacheAdapter
+class File extends AbstractAdapter
 {
     protected $dir;
 
     public function __construct(array $options)
     {
-        $this->dir = rtrim($options['dir'], DIRECTORY_SEPARATOR);
+        $dir = isset($options['dir']) ? $options['dir'] : '/tmp';
+        $this->dir = rtrim($dir, DIRECTORY_SEPARATOR);
     }
 
     public function exists($key)
@@ -20,14 +19,14 @@ class Memcache extends AbstractCacheAdapter
 
     public function get($key)
     {
-        $filename = $this->filename($key);
-        if (file_exists($filename)) {
+        if ($this->exists($key)) {
+            $filename = $this->filename($key);
             return unserialize(file_get_contents($filename));
         }
         return null;
     }
 
-    public function set($key, $value, $expire)
+    public function set($key, $value, $expire = null)
     {
         $filename = $this->filename($key);
         $dirname = dirname($filename);
@@ -35,6 +34,21 @@ class Memcache extends AbstractCacheAdapter
             mkdir($dirname, 0777, true);
         }
         file_put_contents($filename, serialize($value));
+    }
+
+    public function delete($key)
+    {
+        return unlink($this->filename($key));
+    }
+
+    public function flushAll()
+    {
+        foreach (new \DirectoryIterator($this->dir) as $file) {
+            if (substr($file->getFilename(), 0, 1) === '.' || $file->isDir()) {
+                continue;
+            }
+            unlink($file->getPathname());
+        }
     }
 
     public function filename($key)

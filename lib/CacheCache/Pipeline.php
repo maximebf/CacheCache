@@ -2,17 +2,17 @@
 
 namespace CacheCache;
 
-class CachePipeline
+class Pipeline
 {
-    protected $cache;
+    protected $adapter;
 
     protected $commands = array();
 
     protected $expire = null;
 
-    public function __construct(CacheNamespace $cache)
+    public function __construct(Adapter $cache)
     {
-        $this->cache = $cache;
+        $this->adapter = $cache;
     }
 
     public function get($key)
@@ -50,15 +50,16 @@ class CachePipeline
                 $currentGroup[$args[0]] = $args[1];
             }
         }
+        $groups[] = array($currentOperation, $currentGroup);
         array_shift($groups);
 
         foreach ($groups as $group) {
             list($op, $args) = $group;
             if ($op === 'set') {
-                $result = $this->cache->setMulti($args, $this->expire);
+                $result = $this->adapter->setMulti($args, $this->expire);
                 $results = array_merge($results, array_fill(0, count($args), $result));
             } else {
-                $results = array_merge($results, $this->cache->getMulti($args));
+                $results = array_merge($results, $this->adapter->getMulti($args));
             }
         }
 

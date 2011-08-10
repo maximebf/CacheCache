@@ -10,4 +10,4 @@ spl_autoload_register(function($className) {
     require_once $filename;
 });
 
-CacheCache\CacheManager::setup('CacheCache\Adapters\Memory');
+CacheCache\CacheManager::setup('CacheCache\Adapters\Memory', 'CacheCache\Profilers\Text');
