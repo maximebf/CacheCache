@@ -219,7 +219,7 @@ class Cache implements Adapter
     public function capturePage($key = null, $expire = null, $exit = true)
     {
         if ($key === null) {
-            $key = '';
+            $key = md5(serialize($_SERVER['REQUEST_URI']) . serialize($_REQUEST));
         }
 
         if ($this->start($key, $expire)) {
