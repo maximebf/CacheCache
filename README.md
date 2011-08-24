@@ -1,3 +1,3 @@
 # CacheCache
 
-Caching framework for PHP 5.3
+Caching framework for PHP 5.3+

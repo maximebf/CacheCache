@@ -16,12 +16,43 @@
  * @license http://www.opensource.org/licenses/mit-license.php
  */
 
-namespace CacheCache\Profilers;
+namespace CacheCache\Backends;
 
-class Text extends AbstractProfiler
+/**
+ * Apc
+ */
+class Apc extends AbstractBackend
 {
-    public function log($operation, $id, $ttl, $success, $time)
+    public function exists($id)
     {
-        echo $this->formatMessage($operation, $id, $ttl, $success, $time) . "\n";
+        return apc_exists($id);
+    }
+
+    public function get($id)
+    {
+        if (($value = apc_fetch($id)) === false) {
+            return null;
+        }
+        return $value;
+    }
+
+    public function add($id, $value, $ttl = null)
+    {
+        return apc_add($id, $value, $ttl ?: 0);
+    }
+
+    public function set($id, $value, $ttl = null)
+    {
+        return apc_store($id, $value, $ttl ?: 0);
+    }
+
+    public function delete($id)
+    {
+        return apc_delete($id);
+    }
+
+    public function flushAll()
+    {
+        return false;
     }
 }

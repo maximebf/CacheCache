@@ -1,174 +1,328 @@
 <?php
+/**
+ * CacheCache
+ * Copyright (c) Maxime Bouroumeau-Fuseau
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author Maxime Bouroumeau-Fuseau
+ * @copyright (c) Maxime Bouroumeau-Fuseau
+ * @license http://www.opensource.org/licenses/mit-license.php
+ */
 
 namespace CacheCache;
 
-class Cache implements Adapter
+/**
+ * Cache frontend
+ *
+ * Provides facility methods to interact with a backend.
+ */
+class Cache implements Backend
 {
-    public static $separator = ':';
+    /** @var string */
+    public static $namespaceSeparator = ':';
 
+    /** @var string */
     protected $namespace;
 
-    protected $adapter;
+    /** @var Backend */
+    protected $backend;
 
-    protected $defaultExpire;
+    /** @var int */
+    protected $defaultTTL;
 
-    protected $expirationVariation = 0;
+    /** @var int */
+    protected $ttlVariation = 0;
 
+    /** @var array */
     protected $stack = array();
 
-    protected $capturing = false;
+    /** @var int */
+    protected $capturing = 0;
 
-    public function __construct(Adapter $adapter, $namespace = '', $defaultExpire = null, $expirationVariation = 0)
+    /**
+     * @param Backend $backend
+     * @param string $namespace
+     * @param int $defaultTTL
+     * @param int $ttlVariation
+     */
+    public function __construct(Backend $backend, $namespace = '', $defaultTTL = null, $ttlVariation = 0)
     {
-        $this->adapter = $adapter;
+        $this->backend = $backend;
         $this->namespace = $namespace;
-        $this->defaultExpire = $defaultExpire;
-        $this->expirationVariation = $expirationVariation;
+        $this->defaultTTL = $defaultTTL;
+        $this->ttlVariation = $ttlVariation;
     }
 
+    /**
+     * @return string
+     */
     public function getNamespace()
     {
         return $this->namespace;
     }
 
-    public function getAdapter()
+    /**
+     * @return Backend
+     */
+    public function getBackend()
     {
-        return $this->adapter;
+        return $this->backend;
     }
 
-    public function setDefaultExpire($expire)
+    /**
+     * Default time to live value in seconds for all data modification queries
+     *
+     * @param int $ttl
+     */
+    public function setDefaultTTL($ttl)
     {
-        $this->defaultExpire = $expire;
+        $this->defaultTTL = $tll;
     }
 
-    public function getDefaultExpire()
+    /**
+     * @return int
+     */
+    public function getDefaultTTL()
     {
-        return $this->defaultExpire;
+        return $this->defaultTTL;
     }
 
-    public function setExpirationVariation($amplitude)
+    /**
+     * To avoid that all values invalidates at the same time, a small
+     * variation can be added to TTL values of all data modification queries.
+     *
+     * @param int $amplitude Maximum value in seconds the variation can be
+     */
+    public function setTTLVariation($amplitude)
     {
-        $this->expirationVariation = $amplitude;
+        $this->ttlVariation = $amplitude;
     }
 
-    public function getExpirationVariation()
+    /**
+     * @return int
+     */
+    public function getTTLVariation()
     {
-        return $this->expirationVariation;
+        return $this->ttlVariation;
     }
 
-    protected function computeExpire($expire)
+    /**
+     * Computes the final TTL taking into account the default ttl
+     * and the ttl variation
+     *
+     * @param int $ttl
+     * @return int
+     */
+    protected function computeTTL($ttl = null)
     {
-        $expire = $expire ?: $this->defaultExpire;
-        return $expire + rand(0, $this->expirationVariation);
+        $ttl = $ttl ?: $this->defaultTTL;
+        return $ttl + rand(0, $this->ttlVariation);
     }
 
-    public function key($key)
+    /**
+     * Computes and id as it will be inserted into the backend
+     * (ie. taking into account the namespace)
+     *
+     * Any number of parameters can be used with this method.
+     * They will all be concatenated with the $namespaceSeparator.
+     *
+     * @param string $id
+     * @return string
+     */
+    public function id($id)
     {
-        $parts = array_merge(array($this->namespace), (array) $key);
-        return trim(implode(self::$separator, $parts), self::$separator);
+        $parts = array_merge(array($this->namespace), func_get_args());
+        return trim(implode(self::$namespaceSeparator, $parts), self::$namespaceSeparator);
     }
 
-    public function ns($namespace, $defaultExpire = null)
+    /**
+     * Returns a {@see Cache} object for a sub-namespace.
+     *
+     * @param string $namespace
+     * @param int $defaultTTL
+     * @return Cache
+     */
+    public function ns($namespace, $defaultTTL = null)
     {
-        $namespace = $this->key($namespace);
-        $defaultExpire = $defaultExpire ?: $this->defaultExpire;
-        return new Cache($this->adapter, $namespace, $defaultExpire, $this->expirationVariation);
+        $namespace = $this->id($namespace);
+        $defaultTTL = $defaultTTL ?: $this->defaultTTL;
+        return new Cache($this->backend, $namespace, $defaultTTL, $this->ttlVariation);
     }
 
-    public function exists($key)
+    /**
+     * {@inheritDoc}
+     */
+    public function exists($id)
     {
-        $key = $this->key($key);
-        return $this->adapter->exists($key);
+        $id = $this->id($id);
+        return $this->backend->exists($id);
     }
 
-    public function get($key, $default = null)
+    /**
+     * {@inheritDoc}
+     */
+    public function get($id, $default = null)
     {
-        $key = $this->key($key);
-        if (($value = $this->adapter->get($key)) === null) {
+        $id = $this->id($id);
+        if (($value = $this->backend->get($id)) === null) {
             return $default;
         }
         return $value;
     }
 
-    public function getMulti(array $keys)
+    /**
+     * {@inheritDoc}
+     */
+    public function getMulti(array $ids)
     {
-        $keys = array_map(array($this, 'key'), $keys);
-        return $this->adapter->getMulti($keys);
+        $ids = array_map(array($this, 'id'), $ids);
+        return $this->backend->getMulti($ids);
     }
 
-    public function add($key, $value, $expire = null)
+    /**
+     * {@inheritDoc}
+     */
+    public function add($id, $value, $ttl = null)
     {
-        $key = $this->key($key);
-        $expire = $this->computeExpire($expire);
-        return $this->adapter->add($key, $value, $expire);
+        $id = $this->id($id);
+        $ttl = $this->computeTTL($ttl);
+        return $this->backend->add($id, $value, $ttl);
     }
 
-    public function set($key, $value, $expire = null)
+    /**
+     * {@inheritDoc}
+     */
+    public function set($id, $value, $ttl = null)
     {
-        $key = $this->key($key);
-        $expire = $this->computeExpire($expire);
-        return $this->adapter->set($key, $value, $expire);
+        $id = $this->id($id);
+        $ttl = $this->computeTTL($ttl);
+        return $this->backend->set($id, $value, $ttl);
     }
 
-    public function setMulti(array $items, $expire = null)
+    /**
+     * {@inheritDoc}
+     */
+    public function setMulti(array $items, $ttl = null)
     {
-        $keys = array_map(array($this, 'key'), array_keys($items));
-        $items = array_combine($keys, array_values($items));
-        $expire = $this->computeExpire($expire);
-        return $this->adapter->setMulti($items, $expire);
+        $ids = array_map(array($this, 'id'), array_keys($items));
+        $items = array_combine($ids, array_values($items));
+        $ttl = $this->computeTTL($ttl);
+        return $this->backend->setMulti($items, $ttl);
     }
 
-    public function delete($key)
+    /**
+     * {@inheritDoc}
+     */
+    public function delete($id)
     {
-        return $this->adapter->delete($this->key($key));
+        $id = $this->id($id);
+        return $this->backend->delete($id);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function flushAll()
     {
-        return $this->adapter->flushAll();
+        return $this->backend->flushAll();
     }
 
-    public function getset($key, $value, $expire = null)
+    /**
+     * Returns the value of $id if it exists. Sets $id to $value otherwise.
+     *
+     * $value can be a closure that will only be called if $id does not exists.
+     * It must return the value to be added to the cache.
+     *
+     * @param string $id
+     * @param mixed|Closure $value
+     * @param int $ttl
+     * @return mixed
+     */
+    public function getset($id, $value, $ttl = null)
     {
-        if (($v = $this->get($key)) === null) {
-            $this->add($key, $value, $expire);
-            return $value;
+        if (($v = $this->get($id)) === null) {
+            if ($value instanceof \Closure) {
+                $v = $value($this);
+            } else {
+                $v = $value;
+            }
+            $this->add($id, $v, $ttl);
         }
         return $v;
     }
 
-    public function cached($key, $closure, $expire = null)
+    /**
+     * Tries to fetch the $id entry. If it does not exist, returns false
+     * and saves the $id and the $ttl for a later call to {@see save()}.
+     *
+     * Nested calls can be performed.
+     *
+     * <code>
+     *      if (!($data = $cache->load('myid'))) {
+     *          // do heavy stuff
+     *          // $data = ...
+     *          $cache->save($data);
+     *      }
+     * </code>
+     *
+     * @param string $id
+     * @param int $ttl
+     * @return mixed
+     */
+    public function load($id, $ttl = null)
     {
-        if (($value = $this->get($key)) === null) {
-            $value = $closure($this);
-            $this->add($key, $value, $expire);
-        }
-        return $value;
-    }
-
-    public function load($key, $expire)
-    {
-        if (($value = $this->get($key)) !== null) {
+        if (($value = $this->get($id)) !== null) {
             return $value;
         }
-        $this->stack[] = array($key, $expire);
+        $this->stack[] = array($id, $ttl);
         return false;
     }
 
-    public function save($value)
+    /**
+     * Saves some $data in the cache using the last $id
+     * provided to the {@see load()} method.
+     *
+     * @param mixed $data
+     */
+    public function save($data)
     {
         if (empty($this->stack)) {
             throw new CacheException("Cache::load() must be called before Cache::save()");
         }
-        list($key, $expire) = array_pop($this->stack);
-        return $this->add($key, $value, $expire);
+        list($id, $ttl) = array_pop($this->stack);
+        return $this->add($id, $data, $ttl);
     }
 
-    public function start($key, $expire = null, $echo = true)
+    /**
+     * Similar to {@see load()} but starts capturing the output if $id is not
+     * found or echoes (unless $echo is set to false) the retreived value.
+     *
+     * Nested calls can be performed.
+     *
+     * <code>
+     *      if (!$cache->start('myid')) {
+     *          echo "lots of data";
+     *          $cache->end();
+     *      }
+     * </code>
+     *
+     * @param string $id
+     * @param int $ttl
+     * @param bool $echo
+     * @return mixed
+     */
+    public function start($id, $ttl = null, $echo = true)
     {
-        if (($output = $this->load($key, $expire)) === false) {
+        if (($output = $this->load($id, $ttl)) === false) {
             ob_start();
-            $this->capturing = true;
+            $this->capturing++;
             return false;
         }
         if ($echo) {
@@ -177,12 +331,19 @@ class Cache implements Adapter
         return $output;
     }
 
+    /** 
+     * Similar to {@see save()} but saves the output since the last call
+     * to {@see start()}. Also echoes the output unless $echo is set to false.
+     *
+     * @param bool $echo
+     * @return string The captured output
+     */
     public function end($echo = true)
     {
-        if (!empty($this->stack)) {
+        if (!empty($this->stack) && $this->capturing > 0) {
             $output = ob_get_clean();
             $this->save($output);
-            $this->capturing = false;
+            $this->capturing--;
             if ($echo) {
                 echo $output;
             }
@@ -191,38 +352,76 @@ class Cache implements Adapter
         return false;
     }
 
+    /**
+     * Checks if a capture started by {@see start()} is currently being performed.
+     *
+     * @return bool
+     */
     public function isCapturing()
     {
-        return $this->capturing;
+        return $this->capturing > 0;
     }
 
+    /**
+     * Cancels the last call to either {@see load()} or {@see start()}. Further
+     * calls to {@see save()} or {@see end()} will be ignored.
+     */
     public function cancel()
     {
         if (!empty($this->stack)) {
             array_pop($this->stack);
-            if ($this->capturing) {
-                $this->capturing = false;
+            if ($this->capturing > 0) {
+                $this->capturing--;
                 ob_end_flush();
             }
         }
     }
 
-    public function capture($key, $closure, $expire = null, $echo = true)
+    /**
+     * Similar to {@see start()} followed by {@see end()} but will capture
+     * all the output done while $callback is executed.
+     *
+     * <code>
+     *      $cache->capture('myid', function() {
+     *          echo "lots of data";
+     *      })
+     * </code>
+     *
+     * @param string $id
+     * @param callback $callback
+     * @param int $ttl
+     * @param bool $echo
+     * @return string
+     */
+    public function capture($id, $callback, $ttl = null, $echo = true)
     {
-        if (($output = $this->start($key, $expire, $echo)) === false) {
-            $closure($this);
+        if (($output = $this->start($id, $ttl, $echo)) === false) {
+            call_user_func($callback, $this);
             return $this->end($echo);
         }
         return $output;
     }
 
-    public function capturePage($key = null, $expire = null, $exit = true)
+    /**
+     * Captures the whole output of the script until it ends.
+     *
+     * If no $id is specified, it will be computed from a combination
+     * of the $_SERVER['REQUEST_URI'] and the $_REQUEST variables.
+     *
+     * If $id is found, the script will exit unless $exit is set to false.
+     *
+     * @param string $id
+     * @param int $ttl
+     * @param bool $exit
+     * @return bool
+     */
+    public function capturePage($id = null, $ttl = null, $exit = true)
     {
-        if ($key === null) {
-            $key = md5(serialize($_SERVER['REQUEST_URI']) . serialize($_REQUEST));
+        if ($id === null) {
+            $id = md5(serialize($_SERVER['REQUEST_URI']) . serialize($_REQUEST));
         }
 
-        if ($this->start($key, $expire)) {
+        if ($this->start($id, $ttl)) {
             if ($exit) {
                 exit;
             }
@@ -232,40 +431,96 @@ class Cache implements Adapter
         return false;
     }
 
-    public function call($callback, $args, $expire = null)
+    /**
+     * Works the same way as {@see call_user_func_array()} but calls are cached.
+     *
+     * The cache id will be computed from the $callback and the $args.
+     *
+     * <code>
+     *      function do_heavy_computing($data) { }
+     *      $result = $cache->call('do_heavy_computing', array($data));
+     * </code>
+     *
+     * @param callback $callback Any callbacks unless it is a closure, in this case use {@see getset()}
+     * @param array $args
+     * @param int $ttl
+     * @return mixed
+     */
+    public function call($callback, array $args, $ttl = null)
     {
-        $key = md5(serialize($callback) . serialize($args));
-        return $this->cached($key, function() use ($callback, $args) {
-            return call_user_func_array($callback, $args);
-        }, $expire);
+        $id = md5(serialize($callback) . serialize($args));
+        if (($value = $this->get($id)) === null) {
+            $value = call_user_func_array($callback, $args);
+            $this->add($id, $value, $ttl);
+        }
+        return $value;
     }
 
-    public function wrap($object, $key = null, $expire = null)
+    /**
+     * Wraps an object in {@see ObjectWrapper}.
+     *
+     * @see ObjectWrapper
+     * @param object $object
+     * @param string $id If null, the object's class name will be used
+     * @param int $ttl
+     * @return ObjectWrapper
+     */
+    public function wrap($object, $id = null, $ttl = null)
     {
-        $key = $key ?: get_class($object);
-        return new Wrapper($object, $this->ns($key, $expire));
+        $id = $id ?: get_class($object);
+        return new ObjectWrapper($object, $this->ns($id, $ttl));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function supportsPipelines()
     {
         return true;
     }
 
+    /**
+     * Creates a pipeline for batching operations
+     *
+     * If the backend does not support pipelines, the
+     * generic {@see Pipeline} implementation will be used.
+     *
+     * @return Pipeline
+     */
     public function createPipeline()
     {
-        if ($this->adapter->supportsPipelines()) {
-            return $this->adapter->createPipeline();
+        if ($this->backend->supportsPipelines()) {
+            return $this->backend->createPipeline();
         }
         return new Pipeline($this);
     }
 
-    public function pipeline($closure = null)
+    /**
+     * Creates a pipeline, executes the callback which should use
+     * the provided pipeline object as its only argument without
+     * executing it. The pipeline will the be executed and its
+     * results will be returned.
+     *
+     * If no callback is specified, the pipeline object will be
+     * returned without being executed.
+     *
+     * <code>
+     *      $results = $cache->pipeline(function($pipe) {
+     *          $pipe->set('id1', 'value1');
+     *          $pipe->set('id2', 'value2');
+     *      })
+     * </code>
+     *
+     * @param callback $callback
+     * @return mixed
+     */
+    public function pipeline($callback = null)
     {
         $pipe = $this->createPipeline();
-        if ($closure === null) {
+        if ($callback === null) {
             return $pipe;
         }
-        $closure($pipe);
+        call_user_func($callback, $pipe);
         return $pipe->execute();
     }
 }

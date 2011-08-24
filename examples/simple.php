@@ -19,7 +19,7 @@ var_dump($cache->get('foo'));
 
 // ----------------------
 
-$foo = $cache->cached('foo', function() {
+$foo = $cache->getset('foo', function() {
     return 'bar';
 });
 var_dump($foo);

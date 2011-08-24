@@ -1,0 +1,9 @@
+{
+    "title": "CacheCache",
+    "home": "01_intro.md",
+    "files": [
+        "01_intro.md",
+        "02_usage.md",
+        "03_backends.md"
+    ]
+}

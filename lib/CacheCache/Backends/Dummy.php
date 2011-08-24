@@ -16,12 +16,32 @@
  * @license http://www.opensource.org/licenses/mit-license.php
  */
 
-namespace CacheCache\Profilers;
+namespace CacheCache\Backends;
 
-class Text extends AbstractProfiler
+/**
+ * Dummy
+ *
+ * Does nothing. Can be used to disable caching
+ */
+class Dummy extends AbstractBackend
 {
-    public function log($operation, $id, $ttl, $success, $time)
+    public function get($id)
     {
-        echo $this->formatMessage($operation, $id, $ttl, $success, $time) . "\n";
+        return null;
+    }
+
+    public function set($id, $value, $ttl = null)
+    {
+        return true;
+    }
+
+    public function delete($id)
+    {
+        return true;
+    }
+
+    public function flushAll()
+    {
+        return true;
     }
 }

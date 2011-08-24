@@ -1,35 +1,98 @@
 <?php
+/**
+ * CacheCache
+ * Copyright (c) Maxime Bouroumeau-Fuseau
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @author Maxime Bouroumeau-Fuseau
+ * @copyright (c) Maxime Bouroumeau-Fuseau
+ * @license http://www.opensource.org/licenses/mit-license.php
+ */
 
 namespace CacheCache;
 
+/**
+ * Pipelines are inspired from Predis. 
+ * They allow to easily perform multiple get and set commands.
+ *
+ * <code>
+ *      $pipe = new Pipeline($backend);
+ *      $pipe->set('id1', 'value1');
+ *      $pipe->set('id2', 'value2');
+ *      $pipe->get('id1');
+ *      $pipe->get('id2');
+ *      $results = $pipe->execute();
+ *
+ *      // is equivalent to:
+ *
+ *      $setResults = $backend->setMulti(array('id1' => 'value1', 'id2' => 'value2'));
+ *      $getResults = $backend->getMulti(array('id1', 'id2'));
+ *      $results = array_merge($setResults, $getResults);
+ * </code>
+ */
 class Pipeline
 {
-    protected $adapter;
+    /** @var Backend */
+    protected $backend;
 
+    /** @var array */
     protected $commands = array();
 
-    protected $expire = null;
+    /** @var int */
+    protected $ttl = null;
 
-    public function __construct(Adapter $cache)
+    /**
+     * @param Backend $backend
+     */
+    public function __construct(Backend $backend)
     {
-        $this->adapter = $cache;
+        $this->backend = $backend;
     }
 
-    public function get($key)
+    /**
+     * Registers a GET command
+     *
+     * @param string $id
+     */
+    public function get($id)
     {
-        $this->commands[] = array('get', $key);
+        $this->commands[] = array('get', $id);
     }
 
-    public function set($key, $value)
+    /**
+     * Registers a SET command
+     *
+     * @param string $id
+     * @param mixed $value
+     */
+    public function set($id, $value)
     {
-        $this->commands[] = array('set', $key, $value);
+        $this->commands[] = array('set', $id, $value);
     }
 
-    public function expire($expire)
+    /**
+     * Sets the ttl for all SET commands
+     *
+     * @param int $ttl
+     */
+    public function ttl($ttl = null)
     {
-        $this->expire = $expire;
+        $this->ttl = $ttl;
     }
 
+    /**
+     * Executes the pipeline and returns results of individual commands
+     * as an array.
+     *
+     * @return array
+     */
     public function execute()
     {
         $groups = array();
@@ -37,17 +100,16 @@ class Pipeline
         $currentOperation = null;
         $currentGroup = array();
 
-        foreach ($this->commands as $args) {
-            $op = array_shift($args);
-            if ($currentOperation !== $op) {
+        foreach ($this->commands as $command) {
+            if ($currentOperation !== $command[0]) {
                 $groups[] = array($currentOperation, $currentGroup);
-                $currentOperation = $op;
+                $currentOperation = $command[0];
                 $currentGroup = array();
             }
             if ($currentOperation === 'get') {
-                $currentGroup[] = $args[0];
+                $currentGroup[] = $command[1];
             } else {
-                $currentGroup[$args[0]] = $args[1];
+                $currentGroup[$command[1]] = $command[2];
             }
         }
         $groups[] = array($currentOperation, $currentGroup);
@@ -56,13 +118,14 @@ class Pipeline
         foreach ($groups as $group) {
             list($op, $args) = $group;
             if ($op === 'set') {
-                $result = $this->adapter->setMulti($args, $this->expire);
+                $result = $this->backend->setMulti($args, $this->ttl);
                 $results = array_merge($results, array_fill(0, count($args), $result));
             } else {
-                $results = array_merge($results, $this->adapter->getMulti($args));
+                $results = array_merge($results, $this->backend->getMulti($args));
             }
         }
 
+        $this->commands = array();
         return $results;
     }
 }
