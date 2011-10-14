@@ -1,9 +1,8 @@
 {
     "title": "CacheCache",
-    "home": "01_intro.md",
+    "home": "../README.md",
     "files": [
-        "01_intro.md",
-        "02_usage.md",
-        "03_backends.md"
+        "01_usage.md",
+        "02_backends.md"
     ]
 }

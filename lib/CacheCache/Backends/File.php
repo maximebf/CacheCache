@@ -136,7 +136,7 @@ class File extends AbstractBackend
         }
 
         $this->filenameCache[$id] = $filename;
-        return $dir . DIRECTORY_SEPARATOR . $filename:
+        return $dir . DIRECTORY_SEPARATOR . $filename;
     }
 
     /**

@@ -260,7 +260,7 @@ class Cache implements Backend
 
     /**
      * Tries to fetch the $id entry. If it does not exist, returns false
-     * and saves the $id and the $ttl for a later call to {@see save()}.
+     * and saves the $id for a later call to {@see save()}.
      *
      * Nested calls can be performed.
      *
@@ -273,15 +273,14 @@ class Cache implements Backend
      * </code>
      *
      * @param string $id
-     * @param int $ttl
      * @return mixed
      */
-    public function load($id, $ttl = null)
+    public function load($id)
     {
         if (($value = $this->get($id)) !== null) {
             return $value;
         }
-        $this->stack[] = array($id, $ttl);
+        $this->stack[] = $id;
         return false;
     }
 
@@ -290,13 +289,14 @@ class Cache implements Backend
      * provided to the {@see load()} method.
      *
      * @param mixed $data
+     * @param int $ttl
      */
-    public function save($data)
+    public function save($data, $ttl = null)
     {
         if (empty($this->stack)) {
             throw new CacheException("Cache::load() must be called before Cache::save()");
         }
-        list($id, $ttl) = array_pop($this->stack);
+        $id = array_pop($this->stack);
         return $this->add($id, $data, $ttl);
     }
 
@@ -314,13 +314,12 @@ class Cache implements Backend
      * </code>
      *
      * @param string $id
-     * @param int $ttl
      * @param bool $echo
      * @return mixed
      */
-    public function start($id, $ttl = null, $echo = true)
+    public function start($id, $echo = true)
     {
-        if (($output = $this->load($id, $ttl)) === false) {
+        if (($output = $this->load($id)) === false) {
             ob_start();
             $this->capturing++;
             return false;
@@ -335,14 +334,15 @@ class Cache implements Backend
      * Similar to {@see save()} but saves the output since the last call
      * to {@see start()}. Also echoes the output unless $echo is set to false.
      *
+     * @param int $ttl
      * @param bool $echo
      * @return string The captured output
      */
-    public function end($echo = true)
+    public function end($ttl = null, $echo = true)
     {
         if (!empty($this->stack) && $this->capturing > 0) {
             $output = ob_get_clean();
-            $this->save($output);
+            $this->save($output, $ttl);
             $this->capturing--;
             if ($echo) {
                 echo $output;
@@ -395,9 +395,9 @@ class Cache implements Backend
      */
     public function capture($id, $callback, $ttl = null, $echo = true)
     {
-        if (($output = $this->start($id, $ttl, $echo)) === false) {
+        if (($output = $this->start($id, $echo)) === false) {
             call_user_func($callback, $this);
-            return $this->end($echo);
+            return $this->end($ttl, $echo);
         }
         return $output;
     }
@@ -421,13 +421,14 @@ class Cache implements Backend
             $id = md5(serialize($_SERVER['REQUEST_URI']) . serialize($_REQUEST));
         }
 
-        if ($this->start($id, $ttl)) {
+        if ($this->start($id)) {
             if ($exit) {
                 exit;
             }
             return true;
         }
-        register_shutdown_function(array($this, 'end'));
+        $self = $this;
+        register_shutdown_function(function() use ($self) { $self->end($ttl); });
         return false;
     }
 
