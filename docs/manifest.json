@@ -2,7 +2,7 @@
     "title": "CacheCache",
     "home": "../README.md",
     "files": [
-        "01_usage.md",
-        "02_backends.md"
+        "usage.md",
+        "backends.md"
     ]
 }

@@ -44,4 +44,4 @@ Examples:
         $pipe->get('foo');
     });
 
-More examples [here](https://github.com/maximebf/CacheCache/tree/master/examples)
+More examples in [examples/](https://github.com/maximebf/CacheCache/tree/master/examples)
