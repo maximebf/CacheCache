@@ -120,7 +120,7 @@ class Cache implements Backend
      * @param int $ttl
      * @return int
      */
-    protected function computeTTL($ttl = null)
+    public function computeTTL($ttl = null)
     {
         $ttl = $ttl ?: $this->defaultTTL;
         return $ttl + rand(0, $this->ttlVariation);

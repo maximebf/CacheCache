@@ -76,4 +76,9 @@ class Memory extends AbstractBackend
         $this->ttls = array();
         return true;
     }
+
+    public function toArray()
+    {
+        return $this->cache;
+    }
 }
