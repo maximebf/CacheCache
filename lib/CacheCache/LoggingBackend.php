@@ -18,49 +18,98 @@
 
 namespace CacheCache;
 
+use Monolog\Logger;
+
 /**
  * Wraps a backend to provide insights on its usage
  */
-class ProfiledBackend implements Backend
+class LoggingBackend implements Backend
 {
     /** @var Backend */
     protected $backend;
 
-    /** @var Profiler */
-    protected $profiler;
+    /** @var Logger */
+    protected $logger;
+
+    /** @var int */
+    protected $logLevel;
 
     /**
+     * @see Logger
      * @param Backend $backend
-     * @param Profiler $profiler
+     * @param Logger $logger
+     * @param int $logLevel
      */
-    public function __construct(Backend $backend, Profiler $profiler = null)
+    public function __construct(Backend $backend, Logger $logger, $logLevel = null)
     {
         $this->backend = $backend;
-        $this->profiler = $profiler;
+        $this->logger = $logger;
+        $this->logLevel = $logLevel ?: Logger::DEBUG;
     }
 
     /**
      * @return Backend
      */
-    public function getProfiledBackend()
+    public function getBackend()
     {
         return $this->backend;
     }
 
     /**
-     * @param Profiler $profiler
+     * @param Logger $logger
      */
-    public function setProfiler(Profiler $profiler)
+    public function setLogger(Logger $logger)
     {
-        $this->profiler = $profiler;
+        $this->logger = $logger;
     }
 
     /**
-     * @return Profiler
+     * @return Logger
      */
-    public function getProfiler()
+    public function getLogger()
     {
-        return $this->profiler;
+        return $this->logger;
+    }
+
+    /**
+     * @param int $level
+     */
+    public function setLogLevel($level)
+    {
+        $this->logLevel = $level;
+    }
+
+    /**
+     * @return int
+     */
+    public function getLogLevel()
+    {
+        return $this->logLevel;
+    }
+
+    /**
+     * Logs an operation
+     * 
+     * @param string $operation
+     * @param string|array $id
+     * @param int $ttl
+     * @param bool $hit
+     */
+    protected function log($operation, $id = null, $ttl = null, $hit = null)
+    {
+        $message = strtoupper($operation);
+        if ($id !== null) {
+            $id = implode(', ', (array) $id);
+            if ($ttl !== null) {
+                $message = sprintf('%s(%s, ttl=%s)', $message, $id, $ttl);
+            } else {
+                $message = sprintf('%s(%s)', $message, $id);
+            }
+        }
+        if ($hit !== null) {
+            $message .= ' = ' . ($hit ? 'HIT' : 'MISS');
+        }
+        $this->logger->addRecord($this->logLevel, $message);
     }
 
     /**
@@ -68,9 +117,8 @@ class ProfiledBackend implements Backend
      */
     public function exists($id)
     {
-        $this->profiler->start('exists', $id);
         $exists = $this->backend->exists($id);
-        $this->profiler->stop($exists);
+        $this->log("exists", $id, null, $exists);
         return $exists;
     }
 
@@ -79,9 +127,8 @@ class ProfiledBackend implements Backend
      */
     public function get($id)
     {
-        $this->profiler->start('get', $id);
         $value = $this->backend->get($id);
-        $this->profiler->stop($value !== null);
+        $this->log("get", $id, null, $value !== null);
         return $value;
     }
 
@@ -90,9 +137,8 @@ class ProfiledBackend implements Backend
      */
     public function getMulti(array $ids)
     {
-        $this->profiler->start('getMulti', $ids);
         $values = $this->backend->getMulti($ids);
-        $this->profiler->stop($values !== null);
+        $this->log("getMulti", $ids, null, $values !== null);
         return $values;
     }
 
@@ -101,9 +147,8 @@ class ProfiledBackend implements Backend
      */
     public function add($id, $value, $ttl = null)
     {
-        $this->profiler->start('add', $id, $ttl);
         $success = $this->backend->add($id, $value, $ttl);
-        $this->profiler->stop($success);
+        $this->log('add', $id, $ttl);
         return $success;
     }
 
@@ -112,9 +157,8 @@ class ProfiledBackend implements Backend
      */
     public function set($id, $value, $ttl = null)
     {
-        $this->profiler->start('set', $id, $ttl);
         $success = $this->backend->set($id, $value, $ttl);
-        $this->profiler->stop($success);
+        $this->log('set', $id, $ttl);
         return $success;
     }
 
@@ -123,9 +167,8 @@ class ProfiledBackend implements Backend
      */
     public function setMulti(array $items, $ttl = null)
     {
-        $this->profiler->start('setMulti', array_keys($items), $ttl);
         $success = $this->backend->setMulti($items, $ttl);
-        $this->profiler->stop($success);
+        $this->log('setMulti', array_keys($items), $ttl);
         return $success;
     }
 
@@ -134,9 +177,8 @@ class ProfiledBackend implements Backend
      */
     public function delete($id)
     {
-        $this->profiler->start('delete', $id);
         $success = $this->backend->delete($id);
-        $this->profiler->stop($success);
+        $this->log('delete', $id);
         return $success;
     }
 
@@ -145,9 +187,8 @@ class ProfiledBackend implements Backend
      */
     public function flushAll()
     {
-        $this->profiler->start('flushAll');
         $success = $this->backend->flushAll();
-        $this->profiler->stop($success);
+        $this->log('flushAll');
         return $success;
     }
 

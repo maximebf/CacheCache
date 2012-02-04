@@ -18,6 +18,8 @@
 
 namespace CacheCache;
 
+use Monolog\Logger;
+
 /**
  * Manages multiple instances of Cache objects
  */
@@ -25,8 +27,11 @@ class CacheManager
 {
     const _DEFAULT = 'default';
 
-    /** @var Profiler */
-    public static $profiler;
+    /** @var Logger */
+    public static $logger;
+
+    /** @var int */
+    public static $logLevel;
 
     /** @var array */
     public static $defaults = array(
@@ -56,20 +61,22 @@ class CacheManager
      *      ));
      * </code>
      *
-     * If $profiler is not null, all Backend instances will be wrapped in a 
-     * {@see ProfiledBackend} object.
+     * If $logger is not null, all Backend instances will be wrapped in a 
+     * {@see LoggingBackend} object.
      *
      * @see factory()
      * @param array $caches
-     * @param Profiler $profiler
+     * @param Logger $logger
+     * @param int $logLevel
      */
-    public static function setup($caches, Profiler $profiler = null)
+    public static function setup($caches, Logger $logger = null, $logLevel = null)
     {
         if (!is_array($caches)) {
             $caches = array(self::_DEFAULT => array('backend' => $caches));
         }
 
-        self::$profiler = $profiler;
+        self::$logger = $logger;
+        self::$logLevel = $logLevel;
 
         foreach ($caches as $name => $options) {
             self::$caches[$name] = self::factory($options);
@@ -118,8 +125,8 @@ class CacheManager
             }
         }
 
-        if (self::$profiler !== null) {
-            $backend = new ProfiledBackend($backend, self::$profiler);
+        if (self::$logger !== null) {
+            $backend = new LoggingBackend($backend, self::$logger, self::$logLevel);
         }
             
         $cache = new Cache($backend, $options['namespace'], $options['ttl'], $options['variation']);

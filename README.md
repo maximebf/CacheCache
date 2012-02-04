@@ -2,22 +2,24 @@
 
 Caching framework for PHP 5.3+
 
+[![Build Status](https://secure.travis-ci.org/maximebf/CacheCache.png)](http://travis-ci.org/maximebf/CacheCache)
+
 Features:
 
--   Easy retreival and storing of key, value pairs using the many available methods
--   Cache function calls
--   Available object wrapper to cache calls to methods
--   Pipelines ala Predis (see below)
--   Namespaces
--   TTL variations to avoid all caches to expire at the same time
--   Multiple backends support (apc, file, memcache(d), memory, redis, session)
--   Profiling
--   Very well documented
+ - Easy retreival and storing of key, value pairs using the many available methods
+ - Cache function calls
+ - Available object wrapper to cache calls to methods
+ - Pipelines ala Predis (see below)
+ - Namespaces
+ - TTL variations to avoid all caches to expire at the same time
+ - Multiple backends support (apc, file, memcache(d), memory, redis, session)
+ - [Monolog](https://github.com/Seldaek/monolog) support
+ - Very well documented
 
 CacheCache features are exposed through a Cache object which itself uses backends to store the data.
 Multiple instances of Cache objects can be managed using the CacheManager.
 
-Full documentation in the [docs folder](https://github.com/maximebf/CacheCache/tree/master/docs)
+Full documentation at [http://maximebf.github.com/CacheCache/](http://maximebf.github.com/CacheCache/)
 
 Examples:
 
