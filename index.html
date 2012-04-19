@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="CacheCache : Caching library for PHP 5.3+" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>CacheCache</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/maximebf/CacheCache">Fork Me on GitHub</a>
+
+          <h1 id="project_title">CacheCache</h1>
+          <h2 id="project_tagline">Caching library for PHP 5.3+</h2>
+
+          <section id="downloads">
+            <a class="zip_download_link" href="https://github.com/maximebf/CacheCache/zipball/master">Download this project as a .zip file</a>
+            <a class="tar_download_link" href="https://github.com/maximebf/CacheCache/tarball/master">Download this project as a tar.gz file</a>
+          </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>Installation</h1>
+
+<p>The easiest way to install CacheCache is using <a href="https://github.com/composer/composer">Composer</a>
+with the following requirement:</p>
+
+<pre><code>{
+    "require": {
+        "maximebf/cachecache": "&gt;=0.1.0"
+    }
+}
+</code></pre>
+
+<p>Alternatively, you can <a href="https://github.com/maximebf/CacheCache/zipball/master">download the archive</a> 
+and add the lib/ folder to PHP's include path:</p>
+
+<pre><code>set_include_path('/path/to/lib' . PATH_SEPARATOR . get_include_path());
+</code></pre>
+
+<p>CacheCache does not provide an autoloader but follows the <a href="https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-0.md">PSR-0 convention</a>.<br>
+You can use the following snippet to autoload CacheCache classes:</p>
+
+<pre><code>spl_autoload_register(function($className) {
+    if (substr($className, 0, 10) === 'CacheCache') {
+        $filename = str_replace('\\', DIRECTORY_SEPARATOR, trim($className, '\\')) . '.php';
+        require_once $filename;
+    }
+});
+</code></pre>
+
+<h1>Usage</h1>
+
+<h2>The CacheManager</h2>
+
+<p><code>CacheManager</code> is a static class that can be used to initialize and store multiple instances
+of Cache objects.</p>
+
+<p>Storing and accessing Cache objects:</p>
+
+<pre><code>$cache = new Cache(new Backends\Memory());
+CacheManager::set('mycache', $cache);
+
+// ...
+
+$cache = CacheManager::get('mycache');
+</code></pre>
+
+<p>Cache objects can be created and initialized using an array with the <code>factory()</code> method. 
+The following options can be defined:</p>
+
+<ul>
+<li>backend: backend class name or Backend instance</li>
+<li>backend_args: an array of constructor arguments for the backend</li>
+<li>namespace</li>
+<li>ttl</li>
+<li>variation</li>
+</ul><p>Example:</p>
+
+<pre><code>$cache = CacheManager::factory(array(
+    'backend' =&gt; 'CacheCache\Backends\Memcache',
+    'backend_args' =&gt; array(array(
+        'host' =&gt; 'localhost',
+        'port' =&gt; 11211
+    ))
+));
+</code></pre>
+
+<p>Finally, multiple Cache objects can be created at the same time using the <code>setup()</code> method. It takes
+as first parameter an array of key/value pairs where keys will be used as the cache name to be used
+with the <code>get()</code> method and values are an array to be used with <code>factory()</code>. The second argument can
+be a <code>Monolog\Logger</code> instance to enable logging.</p>
+
+<pre><code>CacheManager::setup(array(
+    'array' =&gt; 'CacheCache\Backends\Memory',
+    'memcache' =&gt; array(
+        'backend' =&gt; 'CacheCache\Backends\Memcache',
+        'backend_args' =&gt; array(array(
+            'host' =&gt; 'localhost',
+            'port' =&gt; 11211
+        ))
+    )
+));
+
+$cache = CacheManager::get('array');
+</code></pre>
+
+<h2>Simple usage</h2>
+
+<p>Cache (and backends) objects expose the following methods to interact with the data:</p>
+
+<ul>
+<li><code>exists($id)</code></li>
+<li><code>get($id, $default = null)</code></li>
+<li><code>set($id, $value, $ttl = null)</code></li>
+<li><code>add($id, $value, $ttl = null)</code></li>
+<li><code>delete($id)</code></li>
+</ul><p>The <code>add()</code> method won't replace any existing value whereas <code>set()</code> will do.
+<code>$ttl</code> stands for Time To Live and will be the lifetime in seconds of the entry.</p>
+
+<p>If <code>get()</code> is used to retreive a non existing <code>$id</code>, the <code>$default</code> value is returned instead.</p>
+
+<p>Examples:</p>
+
+<pre><code>$cache-&gt;set('foo', 'bar');
+$cache-&gt;exists('foo');
+$cache-&gt;get('foo');
+$cache-&gt;delete('foo');
+
+$cache-&gt;add('foo', 'bar', 10);
+$cache-&gt;exists('foo'); // true
+sleep(11);
+$cache-&gt;exists('foo'); // false
+
+if (($foo = $cache-&gt;get('foo')) === null) {
+    $foo = 'bar';
+    $cache-&gt;set('foo', $foo);
+}
+</code></pre>
+
+<p>To avoid manually testing entries for their existence you can use the <code>getset()</code> method:</p>
+
+<pre><code>$foo = $cache-&gt;getset('foo', function() {
+    return 'bar';
+});
+</code></pre>
+
+<p>In this example, the closure is called only when "foo" does not exist. Another way of 
+doing a similar operation without the use of closures is using the <code>load()</code> and <code>save()</code> methods.</p>
+
+<pre><code>if (!($foo = $cache-&gt;load('foo'))) {
+    $foo = 'bar';
+    $cache-&gt;save($foo);
+}
+</code></pre>
+
+<p><code>load()</code> and <code>save()</code> calls can be nested. A currently running operation (after performing a <code>load()</code>)
+can be cancelled using <code>cancel()</code>.</p>
+
+<pre><code>if (!($foo = $cache-&gt;load('foo'))) {
+    try {
+        $foo = 'bar';
+        $cache-&gt;save($foo);
+    } catch (Exception $e) {
+        $cache-&gt;cancel();
+        $foo = 'default value';
+    }
+}
+</code></pre>
+
+<h2>Caching function calls</h2>
+
+<p>The <code>call()</code> function can be used to cache function calls. It behaves the same way as
+<code>call_user_func_array()</code>. The cache id is generated using the function name and the serialized arguments.</p>
+
+<pre><code>function do_heavy_stuff($arg) {
+    sleep(1);
+    return $arg;
+}
+
+echo $cache-&gt;call('do_heavy_stuff', array('foo')); // sleeps 1 sec
+echo $cache-&gt;call('do_heavy_stuff', array('bar')); // sleeps 1 sec
+echo $cache-&gt;call('do_heavy_stuff', array('foo')); // won't sleep
+</code></pre>
+
+<h2>Caching object methods</h2>
+
+<p>Object methods can be cached by wrapping an object into a special proxy class. The object can be used
+as usual but all calls to its methods will be cached. The cache id for each method is computed using 
+the method name, the serialized arguments and the serialized public properties of the object. The <code>wrap()</code>
+method automatically creates a namespace for all cache ids of this object which is, by default, named after the class.</p>
+
+<pre><code>class MyClass {
+    public function doHeavyStuff($arg) {
+        sleep(1);
+        return $arg;
+    }
+}
+
+$obj = $cache-&gt;wrap(new MyClass());
+echo $obj-&gt;doHeavyStuff('foo'); // sleeps 1 sec
+echo $obj-&gt;doHeavyStuff('foo'); // won't sleep
+</code></pre>
+
+<h2>Capturing content</h2>
+
+<p>CacheCache provides multiple ways to capture echoed content. The easiest one works the same way as <code>load()</code> and <code>save()</code>
+but uses <code>start()</code> and <code>end()</code>.</p>
+
+<pre><code>if (!$cache-&gt;start('foo')) {
+    echo 'bar';
+    $cache-&gt;end();
+}
+</code></pre>
+
+<p><code>cancel()</code> can also be used to cancel a call to <code>start()</code>.</p>
+
+<p>The output of a function can also be captured using the <code>capture()</code> method which works the same way as <code>getset()</code>.</p>
+
+<pre><code>$foo = $cache-&gt;capture('foo', function() {
+    echo 'bar';
+});
+</code></pre>
+
+<p>Finally, the whole content of a page can be captured using <code>capturePage()</code>. It must be called before any
+content has been outputed.</p>
+
+<pre><code>$cache-&gt;capturePage();
+</code></pre>
+
+<p>By default, the cache id will be computed from the <code>REQUEST_URI</code> and the <code>$_REQUEST</code> array and the method 
+calls <code>exit()</code> if there is a hit.</p>
+
+<h2>Multiple operations at once and pipelines</h2>
+
+<p>Multi get and set operations are available in a similar fashion as with the libmemcached pecl extension.</p>
+
+<pre><code>$cache-&gt;setMulti(array(
+    'foo' =&gt; 'bar',
+    'bar' =&gt; 'foo'
+));
+
+$r = $cache-&gt;getMulti(array('foo', 'bar'));
+// $r = array('bar', 'foo');
+</code></pre>
+
+<p>CacheCache also introduces the concept of pipelines inspired by Predis. A pipeline is an object that
+stack operations and executes them all at the same time. Not all backends have native support for pipelines
+(only redis for the moment). A simple pipeline implementation based on <code>setMulti()</code> and <code>getMulti()</code> is provided
+for the other ones.</p>
+
+<pre><code>$r = $cache-&gt;pipeline(function($pipe) {
+    $pipe-&gt;set('foo', 'bar');
+    $pipe-&gt;set('bar', 'foo');
+    $pipe-&gt;get('foo');
+    $pipe-&gt;get('bar');
+});
+</code></pre>
+
+<h2>Namespaces</h2>
+
+<p>Namespaces allow you to better organize cache ids. A cache namespace is simply a new Cache object bound to
+a specific namespace. To create a subnamespace of the current one, use the <code>ns()</code> method.</p>
+
+<pre><code>$cache-&gt;set('a', 'b'); // id = a
+
+$foo = $cache-&gt;ns('foo');
+$foo-&gt;set('a', 'c'); // id = foo:a
+</code></pre>
+
+<h2>Multiple caches</h2>
+
+<p>Multiple backends can be chained together using the <code>MultiCache</code> class. When a value is retreived (get or exists)
+it will first try in the first backend then in the second if it misses, then the third, etc...<br>
+When a key/value pair is modified (insert, add or delete), the operation will be performed on all backends.</p>
+
+<pre><code>$cache = new MultiCache(array($backend1, $backend2));
+</code></pre>
+
+<p>NOTE: Cache objects are themselves backends!</p>
+
+<h2>Logging</h2>
+
+<p>Backend usage can be logged using the <code>LoggingBackend</code> class which requires a <code>Monolog\Logger</code> instance. </p>
+
+<pre><code>$logger = new Monolog\Logger();
+$backend = new LoggingBackend(new Backends\Memory(), $logger);
+$cache = new Cache($backend);
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">CacheCache maintained by <a href="https://github.com/maximebf">maximebf</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
