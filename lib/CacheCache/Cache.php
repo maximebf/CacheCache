@@ -123,6 +123,9 @@ class Cache implements Backend
     public function computeTTL($ttl = null)
     {
         $ttl = $ttl ?: $this->defaultTTL;
+        if ($ttl === null) {
+            return null;
+        }
         return $ttl + rand(0, $this->ttlVariation);
     }
 
