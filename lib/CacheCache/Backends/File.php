@@ -135,8 +135,9 @@ class File extends AbstractBackend
             $filename .= $this->fileExtension;
         }
 
+        $filename = $dir . DIRECTORY_SEPARATOR . $filename;
         $this->filenameCache[$id] = $filename;
-        return $dir . DIRECTORY_SEPARATOR . $filename;
+        return $filename;
     }
 
     /**
