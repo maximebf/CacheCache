@@ -1,6 +1,6 @@
 <?php
 /*
- * This file is part of the MetaP package.
+ * This file is part of the CacheCache package.
  *
  * (c) 2012 Maxime Bouroumeau-Fuseau
  *
