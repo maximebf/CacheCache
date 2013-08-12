@@ -1,6 +1,6 @@
 {
     "name": "maximebf/cachecache",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Caching library for PHP5.3",
     "keywords": ["cache"],
     "homepage": "https://github.com/maximebf/CacheCache",
