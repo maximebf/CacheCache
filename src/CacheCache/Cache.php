@@ -53,11 +53,13 @@ class Cache implements Backend
     }
 
     /**
-     * @return string
+     * Sets the backend of this cache
+     * 
+     * @param Backend $backend
      */
-    public function getNamespace()
+    public function setBackend(Backend $backend)
     {
-        return $this->namespace;
+        $this->backend = $backend;
     }
 
     /**
@@ -66,6 +68,24 @@ class Cache implements Backend
     public function getBackend()
     {
         return $this->backend;
+    }
+
+    /**
+     * Sets the namespace for cache ids
+     * 
+     * @param string $namespace
+     */
+    public function setNamespace($namespace)
+    {
+        $this->namespace = $namespace;
+    }
+
+    /**
+     * @return string
+     */
+    public function getNamespace()
+    {
+        return $this->namespace;
     }
 
     /**
