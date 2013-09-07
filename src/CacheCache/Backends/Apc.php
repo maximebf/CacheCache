@@ -45,6 +45,6 @@ class Apc extends AbstractBackend
 
     public function flushAll()
     {
-        return false;
+        return apc_clear_cache('user');
     }
 }
