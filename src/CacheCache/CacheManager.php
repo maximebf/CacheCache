@@ -99,12 +99,12 @@ class CacheManager
         if (is_string($options) || $options instanceof Backend) {
             $options = array('backend' => $options);
         } else if (!is_array($options)) {
-            throw new CacheException("Options for '$name' in CacheManager::create() must be an array");
+            throw new CacheException("Options argument in CacheManager::factory() must be an array");
         }
 
         $options = array_merge(self::$defaults, $options);
         if (!isset($options['backend'])) {
-            throw new CacheException("No backend specified for '$name' in CacheManager::create()");
+            throw new CacheException("No backend specified in options array for CacheManager::factory()");
         }
 
         $backend = $options['backend'];
