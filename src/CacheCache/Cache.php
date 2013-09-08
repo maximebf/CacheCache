@@ -95,7 +95,7 @@ class Cache implements Backend
      */
     public function setDefaultTTL($ttl)
     {
-        $this->defaultTTL = $tll;
+        $this->defaultTTL = $ttl;
     }
 
     /**
@@ -443,7 +443,7 @@ class Cache implements Backend
             return true;
         }
         $self = $this;
-        register_shutdown_function(function() use ($self) { $self->end($ttl); });
+        register_shutdown_function(function() use ($self, $ttl) { $self->end($ttl); });
         return false;
     }
 
